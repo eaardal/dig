@@ -19,6 +19,7 @@ func main() {
 		Commands: []*cli.Command{
 			commands.TmpCommand,
 			commands.JobCommand,
+			commands.SyncCommand,
 		},
 	}
 

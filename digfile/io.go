@@ -73,23 +73,23 @@ func Write(digfile Digfile) error {
 			return fmt.Errorf("could not create directory: %w", err)
 		}
 
-		existingFile, err := os.Create(filePath)
+		newFile, err := os.Create(filePath)
 		if err != nil {
 			return fmt.Errorf("could not create file: %w", err)
 		}
 
-		file = existingFile
-		defer utils.CloseOrPanic(existingFile.Close)
+		file = newFile
+		defer utils.CloseOrPanic(newFile.Close)
 	}
 
 	if file == nil {
-		newFile, err := os.OpenFile(filePath, os.O_RDWR|os.O_TRUNC, os.ModePerm)
+		existingFile, err := os.OpenFile(filePath, os.O_RDWR|os.O_TRUNC, os.ModePerm)
 		if err != nil {
 			return fmt.Errorf("could not open file: %w", err)
 		}
 
-		file = newFile
-		defer utils.CloseOrPanic(newFile.Close)
+		file = existingFile
+		defer utils.CloseOrPanic(existingFile.Close)
 	}
 
 	fileAsYaml, err := yaml.Marshal(digfile)

@@ -158,3 +158,19 @@ func (d *Digfile) HasJob(name string) bool {
 	}
 	return false
 }
+
+func (d *Digfile) GetJobByName(job string) (*Job, error) {
+	for _, j := range d.Jobs {
+		if j.Name == job {
+			return j, nil
+		}
+	}
+	return nil, fmt.Errorf("job %s not found", job)
+}
+
+func (d *Digfile) GetJobByIndex(index int) (*Job, error) {
+	if index < 0 || index >= len(d.Jobs) {
+		return nil, fmt.Errorf("job index out of bounds")
+	}
+	return d.Jobs[index], nil
+}
