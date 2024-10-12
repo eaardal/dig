@@ -1,7 +1,7 @@
 package digfile
 
 type KubernetesJob struct {
-	ClusterName     string   `json:"clusterName,omitempty"`
+	ContextName     string   `yaml:"contextName,omitempty"`
 	Namespace       string   `yaml:"namespace,omitempty"`
 	DeploymentNames []string `yaml:"deploymentNames,omitempty"`
 }

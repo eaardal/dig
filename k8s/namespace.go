@@ -3,20 +3,20 @@ package k8s
 import (
 	"fmt"
 	"github.com/eaardal/dig/config"
-	"log"
+	"github.com/eaardal/dig/utils"
 	"os"
 	"os/exec"
 	"strings"
 )
 
-func findNamespace() (string, error) {
+func ResolveNamespace() (string, error) {
 	env, found := os.LookupEnv(config.KubernetesNamespaceEnvVar)
 	if found {
 		return env, nil
 	}
 
-	if !hasExe("kubens") {
-		log.Fatalln("Could not resolve the Kubernetes namespace to use because the first two methods of looking up the namespace didn't give any results and it appears kubens is not available on your PATH. Use one of these three methods to provide your namespace: 1) Specify the namespace along with the name to search for: <namespace>/<appName>. 2) Set the PODID_NAMESPACE environment variable. 3) Use kubens (https://github.com/ahmetb/kubectx) to set the current namespace. This is the recommended method. The namespace is resolved in the order these alternatives are listed.")
+	if !utils.HasExeOnPath("kubens") {
+		return "", fmt.Errorf("could not resolve kubernetes namespace using kubens")
 	}
 
 	kubensNamespace, err := exec.Command("kubens", "--current").Output()
@@ -29,9 +29,4 @@ func findNamespace() (string, error) {
 	}
 
 	return strings.TrimSuffix(string(kubensNamespace), "\n"), nil
-}
-
-func hasExe(exe string) bool {
-	path, err := exec.LookPath(exe)
-	return err == nil && len(path) > 0
 }
