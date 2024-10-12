@@ -14,11 +14,10 @@ var JobGetDefaultCommand = &cli.Command{
 			return err
 		}
 
-		for _, job := range digf.Jobs {
-			if job.IsDefault {
-				println(job.Name)
-				return nil
-			}
+		job := digf.GetDefaultJob()
+		if job != nil {
+			println(job.Name)
+			return nil
 		}
 
 		println("No default job set")

@@ -6,7 +6,6 @@ import (
 	"github.com/eaardal/dig/config"
 	"github.com/eaardal/dig/digfile"
 	"github.com/eaardal/dig/k8s"
-	"github.com/eaardal/dig/ui"
 	"github.com/eaardal/dig/ui/interactiveselectlist"
 	"github.com/urfave/cli/v2"
 )
@@ -25,6 +24,10 @@ var JobCreateCommand = &cli.Command{
 			EnvVars:  []string{config.KubernetesContextEnvVar},
 			Required: false,
 		},
+		&cli.BoolFlag{
+			Name:     "default",
+			Required: false,
+		},
 	},
 	Action: func(c *cli.Context) error {
 		args, err := parseJobCreateCommandArgs(c)
@@ -33,13 +36,17 @@ var JobCreateCommand = &cli.Command{
 		}
 
 		newJob := &digfile.Job{
-			Name:       args.jobName,
-			Kubernetes: nil,
+			Name:      args.jobName,
+			IsDefault: args.isDefaultJob,
 		}
 
 		digf, err := digfile.Read()
 		if err != nil {
 			return fmt.Errorf("failed to read digfile: %w", err)
+		}
+
+		if digf.HasJob(args.jobName) {
+			return fmt.Errorf("job with name %s already exists", args.jobName)
 		}
 
 		namespace := args.k8sNamespace
@@ -99,20 +106,17 @@ var JobCreateCommand = &cli.Command{
 			DeploymentNames: selectedDeployments,
 		}
 
+		if newJob.IsDefault {
+			digf.SetAllJobsNotDefault()
+		}
+
 		digf.Jobs = append(digf.Jobs, newJob)
 
 		if err = digfile.Write(*digf); err != nil {
 			return fmt.Errorf("failed to write digfile: %w", err)
 		}
 
-		ui.Write("Job %s created", args.jobName)
-		ui.Write(" - Context: %s", k8sContext)
-		ui.Write(" - Namespace: %s", namespace)
-		ui.Write(" - Deployments:")
-		for _, deployment := range newJob.Kubernetes.DeploymentNames {
-			ui.Write("    - %s", deployment)
-		}
-
+		newJob.Print()
 		return nil
 	},
 }
@@ -121,6 +125,7 @@ type jobCreateCommandArgs struct {
 	jobName      string
 	k8sNamespace string
 	k8sContext   string
+	isDefaultJob bool
 }
 
 func parseJobCreateCommandArgs(c *cli.Context) (*jobCreateCommandArgs, error) {
@@ -138,5 +143,6 @@ func parseJobCreateCommandArgs(c *cli.Context) (*jobCreateCommandArgs, error) {
 		jobName:      jobName,
 		k8sNamespace: c.String("namespace"),
 		k8sContext:   c.String("context"),
+		isDefaultJob: c.Bool("default"),
 	}, nil
 }
