@@ -17,6 +17,11 @@ var JobListCommand = &cli.Command{
 		}
 
 		for i, job := range digf.Jobs {
+			if job.IsDefault {
+				println(fmt.Sprintf("%d - %s (default)", i, job.Name))
+				continue
+			}
+
 			println(fmt.Sprintf("%d - %s", i, job.Name))
 		}
 

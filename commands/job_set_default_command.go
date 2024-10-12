@@ -4,15 +4,13 @@ import (
 	"fmt"
 	"github.com/eaardal/dig/digfile"
 	"github.com/urfave/cli/v2"
-	"log"
 )
 
-var JobRemoveCommand = &cli.Command{
-	Name:    "remove",
-	Usage:   "Remove a job",
-	Aliases: []string{"rm"},
+var JobSetDefaultCommand = &cli.Command{
+	Name:  "set-default",
+	Usage: "Set default job",
 	Action: func(c *cli.Context) error {
-		args, err := parseJobRemoveCommandArgs(c.Args())
+		args, err := parseJobSetDefaultCommandArgs(c.Args())
 		if err != nil {
 			return err
 		}
@@ -27,13 +25,14 @@ var JobRemoveCommand = &cli.Command{
 		}
 
 		if args.jobIndex != nil {
-			digf.Jobs = append(digf.Jobs[:*args.jobIndex], digf.Jobs[*args.jobIndex+1:]...)
-		} else if args.jobName != nil {
 			for i, job := range digf.Jobs {
-				if job.Name == *args.jobName {
-					digf.Jobs = append(digf.Jobs[:i], digf.Jobs[i+1:]...)
-					break
-				}
+				job.IsDefault = i == *args.jobIndex
+			}
+		}
+
+		if args.jobName != nil {
+			for _, job := range digf.Jobs {
+				job.IsDefault = job.Name == *args.jobName
 			}
 		}
 
@@ -41,28 +40,32 @@ var JobRemoveCommand = &cli.Command{
 			return err
 		}
 
-		if args.jobName != nil {
-			log.Printf("Job %s removed", *args.jobName)
-		} else if args.jobIndex != nil {
-			log.Printf("Job at index %d removed", *args.jobIndex)
+		if args.jobIndex != nil {
+			println(fmt.Sprintf("Job at index %d set as default", *args.jobIndex))
+		} else if args.jobName != nil {
+			println(fmt.Sprintf("Job %s set as default", *args.jobName))
 		}
 
 		return nil
 	},
 }
 
-type jobRemoveCommandArgs struct {
+type jobSetDefaultCommandArgs struct {
 	jobIndex *int
 	jobName  *string
 }
 
-func parseJobRemoveCommandArgs(args cli.Args) (*jobRemoveCommandArgs, error) {
+func parseJobSetDefaultCommandArgs(args cli.Args) (*jobSetDefaultCommandArgs, error) {
 	jobIndex, jobName, err := parseJobNameOrIndex(args.Get(0))
 	if err != nil {
 		return nil, err
 	}
 
-	return &jobRemoveCommandArgs{
+	if jobIndex == nil && jobName == nil {
+		return nil, cli.Exit("job index or name is required", 1)
+	}
+
+	return &jobSetDefaultCommandArgs{
 		jobIndex: jobIndex,
 		jobName:  jobName,
 	}, nil

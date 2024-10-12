@@ -9,6 +9,7 @@ type KubernetesJob struct {
 type Job struct {
 	Name       string         `yaml:"name"`
 	Kubernetes *KubernetesJob `yaml:"kubernetes,omitempty"`
+	IsDefault  bool           `yaml:"isDefault,omitempty"`
 }
 
 type Digfile struct {

@@ -9,5 +9,7 @@ var JobCommand = &cli.Command{
 		JobCreateCommand,
 		JobListCommand,
 		JobRemoveCommand,
+		JobSetDefaultCommand,
+		JobGetDefaultCommand,
 	},
 }
