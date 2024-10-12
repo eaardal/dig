@@ -7,5 +7,6 @@ var JobCommand = &cli.Command{
 	Usage: "Manage jobs",
 	Subcommands: []*cli.Command{
 		JobCreateCommand,
+		JobListCommand,
 	},
 }
