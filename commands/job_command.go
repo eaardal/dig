@@ -8,5 +8,6 @@ var JobCommand = &cli.Command{
 	Subcommands: []*cli.Command{
 		JobCreateCommand,
 		JobListCommand,
+		JobRemoveCommand,
 	},
 }

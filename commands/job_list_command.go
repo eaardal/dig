@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"fmt"
 	"github.com/eaardal/dig/digfile"
 	"github.com/urfave/cli/v2"
 )
@@ -15,8 +16,8 @@ var JobListCommand = &cli.Command{
 			return err
 		}
 
-		for _, job := range digf.Jobs {
-			println(job.Name)
+		for i, job := range digf.Jobs {
+			println(fmt.Sprintf("%d - %s", i, job.Name))
 		}
 
 		return nil
