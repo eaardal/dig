@@ -16,8 +16,6 @@ var JobCreateCommand = &cli.Command{
 			return fmt.Errorf("invalid args: %w", err)
 		}
 
-		log.Printf("Creating job %s", args.jobName)
-
 		newJob := &digfile.Job{
 			Name:       args.jobName,
 			Kubernetes: nil,
