@@ -29,13 +29,13 @@ var FadedGrey = lipgloss.Color("#C2C2C2")
 var FadedWhite = lipgloss.Color("#E0E0E0")
 
 var Styles = AppStyles{
-	LogMessageStyles: LogMessageStyles{
-		LineCountStyle: lipgloss.NewStyle().Italic(true).Foreground(PastelYellow),
-		OriginStyle:    lipgloss.NewStyle().Foreground(PastelPurple),
-		TimestampStyle: lipgloss.NewStyle().Foreground(PastelBlue),
-		LevelStyle:     lipgloss.NewStyle().Foreground(PastelGreen),
-		MessageStyle:   lipgloss.NewStyle().Foreground(PastelWhite),
-		CursorStyle:    lipgloss.NewStyle().Bold(true).Foreground(PastelRed),
+	CursorStyle: lipgloss.NewStyle().Bold(true).Foreground(PastelRed),
+	LogEntryStyles: LogMessageStyles{
+		LineNumberStyle: lipgloss.NewStyle().Italic(true).Foreground(PastelYellow),
+		OriginStyle:     lipgloss.NewStyle().Foreground(PastelPurple),
+		TimestampStyle:  lipgloss.NewStyle().Foreground(PastelBlue),
+		LevelStyle:      lipgloss.NewStyle().Foreground(PastelGreen),
+		MessageStyle:    lipgloss.NewStyle().Foreground(PastelWhite),
 	},
 	NearbyLogEntryStyles: NearbyLogEntryStyles{
 		OriginStyle:    lipgloss.NewStyle().Foreground(FadedPurple),
@@ -46,17 +46,17 @@ var Styles = AppStyles{
 }
 
 type AppStyles struct {
-	LogMessageStyles     LogMessageStyles
+	LogEntryStyles       LogMessageStyles
 	NearbyLogEntryStyles NearbyLogEntryStyles
+	CursorStyle          lipgloss.Style
 }
 
 type LogMessageStyles struct {
-	LineCountStyle lipgloss.Style
-	OriginStyle    lipgloss.Style
-	TimestampStyle lipgloss.Style
-	LevelStyle     lipgloss.Style
-	MessageStyle   lipgloss.Style
-	CursorStyle    lipgloss.Style
+	LineNumberStyle lipgloss.Style
+	OriginStyle     lipgloss.Style
+	TimestampStyle  lipgloss.Style
+	LevelStyle      lipgloss.Style
+	MessageStyle    lipgloss.Style
 }
 
 type NearbyLogEntryStyles struct {

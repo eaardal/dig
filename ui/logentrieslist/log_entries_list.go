@@ -78,29 +78,20 @@ func (m Model) View() string {
 	}
 
 	for index, entry := range m.viewEntries {
-		cursor := " "
-		if index == m.cursor {
-			cursor = ">"
-		}
+		cursor := renderCursor(index == m.cursor, ui.Styles.CursorStyle)
 
 		if m.showNearbyLogEntries && index == m.cursor {
 			for _, entryBefore := range entry.LogEntriesBefore {
-				view += fmt.Sprintf("    ") + formatNearbyLine(entry.Origin, originColors[entry.Origin], entryBefore, -1, -1, -1)
+				view += formatNearbyLine(entry.Origin, entryBefore)
 			}
 		}
 
-		numBefore := -1
-		numAfter := -1
-		if m.showNearbyLogEntries {
-			numBefore = entry.NumLogEntriesToPreviousMatch
-			numAfter = entry.NumLogEntriesToNextMatch
-		}
-
-		view += formatLine(entry.Origin, originColors[entry.Origin], entry.LogEntry, cursor, index, numBefore, numAfter)
+		numBefore, numAfter := getNumberOfNearbyLogEntries(entry, m.showNearbyLogEntries)
+		view += cursor + " " + formatLine(entry.Origin, entry.LogEntry, index, numBefore, numAfter)
 
 		if m.showNearbyLogEntries && index == m.cursor {
 			for _, entryAfter := range entry.LogEntriesAfter {
-				view += fmt.Sprintf("   ") + formatNearbyLine(entry.Origin, originColors[entry.Origin], entryAfter, -1, -1, -1)
+				view += formatNearbyLine(entry.Origin, entryAfter)
 			}
 		}
 	}
@@ -108,55 +99,78 @@ func (m Model) View() string {
 	return view
 }
 
+func formatLine(origin string, logEntry *logentry.LogEntry, index int, numBefore int, numAfter int) string {
+	app := renderOrigin(origin, ui.Styles.LogEntryStyles.OriginStyle)
+	timestamp := renderTimestamp(logEntry.Time, ui.Styles.LogEntryStyles.TimestampStyle)
+	level := renderLevel(logEntry.Level, ui.Styles.LogEntryStyles.LevelStyle)
+	msg := renderMessage(logEntry.Message, ui.Styles.LogEntryStyles.MessageStyle)
+	lineNumber := renderLineNumber(index, numBefore, numAfter, ui.Styles.LogEntryStyles.LineNumberStyle)
+
+	return fmt.Sprintf("%s %s - %s - %s - %s\n", lineNumber, app, timestamp, level, msg)
+}
+
+func formatNearbyLine(origin string, logEntry *logentry.LogEntry) string {
+	app := renderOrigin(origin, ui.Styles.NearbyLogEntryStyles.OriginStyle)
+	timestamp := renderTimestamp(logEntry.Time, ui.Styles.NearbyLogEntryStyles.TimestampStyle)
+	level := renderLevel(logEntry.Level, ui.Styles.NearbyLogEntryStyles.LevelStyle)
+	msg := renderMessage(logEntry.Message, ui.Styles.NearbyLogEntryStyles.MessageStyle)
+
+	return fmt.Sprintf("\t%s - %s - %s - %s\n", app, timestamp, level, msg)
+}
+
+func renderTimestamp(timestamp string, style lipgloss.Style) string {
+	parsedTime, _ := time.Parse(time.RFC3339, timestamp)
+	formattedTime := parsedTime.Format("2006-01-02 15:04:05")
+
+	if isToday(parsedTime) {
+		formattedTime = parsedTime.Format("15:04:05")
+	}
+
+	return style.Render(formattedTime)
+}
+
+func renderOrigin(origin string, style lipgloss.Style) string {
+	return style.Render(origin)
+}
+
+func renderLevel(level string, style lipgloss.Style) string {
+	return style.Render(level)
+}
+
+func renderMessage(message string, style lipgloss.Style) string {
+	return style.Render(message)
+}
+
+func renderCursor(cursor bool, style lipgloss.Style) string {
+	if cursor {
+		return style.Render(">")
+	}
+	return " "
+}
+
+func renderLineNumber(index int, numBefore, numAfter int, style lipgloss.Style) string {
+	formattedIndex := fmt.Sprintf("%d.", index)
+
+	if numBefore > -1 || numAfter > -1 {
+		formattedIndex = fmt.Sprintf("%d (%d/%d)", index, numBefore, numAfter)
+	}
+
+	return style.Render(formattedIndex)
+}
+
+func getNumberOfNearbyLogEntries(entry *viewcontroller.ViewEntry, showNearby bool) (int, int) {
+	numBefore := -1
+	numAfter := -1
+
+	if showNearby {
+		numBefore = entry.NumLogEntriesToPreviousMatch
+		numAfter = entry.NumLogEntriesToNextMatch
+	}
+
+	return numBefore, numAfter
+}
+
 func isToday(t time.Time) bool {
 	now := time.Now()
 	return t.Year() == now.Year() && t.YearDay() == now.YearDay()
-}
-
-func formatLine(origin string, originColor lipgloss.Color, logEntry *logentry.LogEntry, cursor string, index int, numBefore int, numAfter int) string {
-	parsedTime, _ := time.Parse(time.RFC3339, logEntry.Time)
-	formattedTime := parsedTime.Format("2006-01-02 15:04:05")
-	if isToday(parsedTime) {
-		formattedTime = parsedTime.Format("15:04:05")
-	}
-
-	app := ui.Styles.LogMessageStyles.OriginStyle.Foreground(originColor).Render(origin)
-	styledTime := ui.Styles.LogMessageStyles.TimestampStyle.Render(formattedTime)
-	level := ui.Styles.LogMessageStyles.LevelStyle.Render(logEntry.Level)
-	msg := ui.Styles.LogMessageStyles.MessageStyle.Render(logEntry.Message)
-	styledCursor := ui.Styles.LogMessageStyles.CursorStyle.Render(cursor)
-
-	ix := fmt.Sprintf("%d.", index)
-	if numBefore > -1 || numAfter > -1 {
-		ix = fmt.Sprintf("%d (%d/%d)", index, numBefore, numAfter)
-	}
-	styledIndex := ui.Styles.LogMessageStyles.LineCountStyle.Render(ix)
-
-	if index > -1 {
-		return fmt.Sprintf("%s %s %s - %s - %s - %s\n", styledCursor, styledIndex, app, styledTime, level, msg)
-	}
-	return fmt.Sprintf("%s %s - %s - %s - %s\n", styledCursor, app, styledTime, level, msg)
-}
-
-func formatNearbyLine(origin string, originColor lipgloss.Color, logEntry *logentry.LogEntry, index int, numBefore int, numAfter int) string {
-	parsedTime, _ := time.Parse(time.RFC3339, logEntry.Time)
-	formattedTime := parsedTime.Format("2006-01-02 15:04:05")
-	if isToday(parsedTime) {
-		formattedTime = parsedTime.Format("15:04:05")
-	}
-
-	app := ui.Styles.LogMessageStyles.OriginStyle.Foreground(originColor).Render(origin)
-	styledTime := ui.Styles.NearbyLogEntryStyles.TimestampStyle.Render(formattedTime)
-	level := ui.Styles.NearbyLogEntryStyles.LevelStyle.Render(logEntry.Level)
-	msg := ui.Styles.NearbyLogEntryStyles.MessageStyle.Render(logEntry.Message)
-
-	ix := fmt.Sprintf("%d.", index)
-	if numBefore > -1 || numAfter > -1 {
-		ix = fmt.Sprintf("%d (%d/%d)", index, numBefore, numAfter)
-	}
-
-	if index > -1 {
-		return fmt.Sprintf("  %s %s - %s - %s - %s\n", ix, app, styledTime, level, msg)
-	}
-	return fmt.Sprintf("  %s - %s - %s - %s\n", app, styledTime, level, msg)
 }
