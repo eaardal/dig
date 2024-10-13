@@ -3,6 +3,7 @@ package viewcontroller
 import (
 	"github.com/eaardal/dig/logentry"
 	"github.com/eaardal/dig/search"
+	"strings"
 )
 
 type ViewEntry struct {
@@ -33,7 +34,7 @@ func PrepareSearchResultsForDisplay(searchResults []*search.Result, opts Options
 	for index, searchResult := range searchResults {
 		if searchResult.IsMatch {
 			viewEntries = append(viewEntries, &ViewEntry{
-				Origin:                       searchResult.LogEntry.Origin,
+				Origin:                       strings.ReplaceAll(searchResult.LogEntry.Origin, ".log", ""),
 				LogEntry:                     searchResult.LogEntry,
 				MatchLocations:               searchResult.MatchLocations,
 				LogEntriesBefore:             findNearbyLogEntries(searchResults, index, opts.NumLogEntriesBefore, before),

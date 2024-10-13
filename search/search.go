@@ -33,7 +33,7 @@ func search(logEntry *logentry.LogEntry, params Params) *Result {
 	}
 
 	if params.InMessage || params.Anywhere {
-		if isValueMatch(logEntry.Message, params.Query, params.CaseSensitive) {
+		if isValueMatch(logEntry.Message, params.Query, params.CaseSensitive, false) {
 			result.IsMatch = true
 			result.MatchLocations = append(result.MatchLocations, MatchLocationMessage)
 			return result
@@ -42,7 +42,7 @@ func search(logEntry *logentry.LogEntry, params Params) *Result {
 
 	if params.InFields || params.Anywhere {
 		for fieldKey, fieldValue := range logEntry.Fields {
-			if isValueMatch(fieldValue, params.Query, params.CaseSensitive) {
+			if isValueMatch(fieldValue, params.Query, params.CaseSensitive, false) {
 				result.IsMatch = true
 				result.MatchLocations = append(result.MatchLocations, fieldKey)
 				return result
@@ -75,7 +75,7 @@ func search(logEntry *logentry.LogEntry, params Params) *Result {
 		}
 
 		for fieldName, fieldValue := range fieldsToSearch {
-			if isValueMatch(fieldValue, params.Query, params.CaseSensitive) {
+			if isValueMatch(fieldValue, params.Query, params.CaseSensitive, false) {
 				result.IsMatch = true
 				result.MatchLocations = append(result.MatchLocations, fieldName)
 				return result
@@ -86,7 +86,7 @@ func search(logEntry *logentry.LogEntry, params Params) *Result {
 	return result
 }
 
-func isValueMatch(valueToSearch string, valueToFind string, caseSensitive bool) bool {
+func isValueMatch(valueToSearch string, valueToFind string, caseSensitive bool, exact bool) bool {
 	if !caseSensitive {
 		valueToSearch = strings.ToLower(valueToSearch)
 		valueToFind = strings.ToLower(valueToFind)
@@ -101,7 +101,10 @@ func isValueMatch(valueToSearch string, valueToFind string, caseSensitive bool) 
 	if strings.HasSuffix(valueToFind, "*") {
 		return strings.HasPrefix(valueToSearch, valueToFind[:len(valueToFind)-1])
 	}
-	return valueToSearch == valueToFind
+	if exact {
+		return valueToSearch == valueToFind
+	}
+	return strings.Contains(valueToSearch, valueToFind)
 }
 
 func sendToSink(ctx context.Context, resultCh chan<- *Result, result *Result) {
