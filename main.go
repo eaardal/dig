@@ -20,6 +20,9 @@ func main() {
 			commands.MsgCommand,
 			commands.JobCommand,
 			commands.SyncCommand,
+
+			// TODO: Remove temporary command
+			commands.TmpCommand,
 		},
 	}
 

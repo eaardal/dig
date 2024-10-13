@@ -14,6 +14,7 @@ type LogEntry struct {
 	Message         string
 	Fields          map[string]string
 	IsParsed        bool
+	Origin          string
 }
 
 func (l *LogEntry) SetFromJsonMap(logMap map[string]interface{}, keywords config.KeywordConfig) {

@@ -1,8 +1,6 @@
 package search
 
 type Params struct {
-	// The name of the app where the logs originated.
-	Origin string
 	// The query to search for.
 	Query string
 	// The log entry's field name to search in.

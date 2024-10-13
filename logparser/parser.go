@@ -24,7 +24,7 @@ func ParseLogFile(ctx context.Context, sourceCh chan LogFile, sinkCh chan<- *log
 	for logFile := range sourceCh {
 		reader := bufio.NewReader(bytes.NewReader(logFile.Content()))
 
-		if err := readAndParseContent(ctx, reader, config.AppConfig.Keywords, sinkCh); err != nil {
+		if err := readAndParseContent(ctx, reader, config.AppConfig.Keywords, logFile.Name(), sinkCh); err != nil {
 			return err
 		}
 	}
@@ -32,7 +32,7 @@ func ParseLogFile(ctx context.Context, sourceCh chan LogFile, sinkCh chan<- *log
 	return nil
 }
 
-func readAndParseContent(ctx context.Context, reader *bufio.Reader, keywords config.KeywordConfig, logEntryCh chan<- *logentry.LogEntry) error {
+func readAndParseContent(ctx context.Context, reader *bufio.Reader, keywords config.KeywordConfig, fileName string, logEntryCh chan<- *logentry.LogEntry) error {
 	lineCount := 0
 
 	for {
@@ -49,9 +49,38 @@ func readAndParseContent(ctx context.Context, reader *bufio.Reader, keywords con
 			}
 
 			lineCount++
+
 			logEntry := parseLogLine(line, lineCount, keywords)
+			logEntry.Origin = fileName
+
 			sendToSink(ctx, logEntryCh, logEntry)
 		}
+	}
+}
+
+func parseLogLine(line []byte, lineCount int, keywords config.KeywordConfig) *logentry.LogEntry {
+	logEntry := &logentry.LogEntry{
+		LineNumber:      lineCount,
+		OriginalLogLine: line,
+		Fields:          make(map[string]string),
+	}
+
+	parsedLogLine := make(map[string]interface{}, 0)
+
+	if err := json.Unmarshal(line, &parsedLogLine); err != nil {
+		logEntry.SetOriginalLogLine(line)
+	} else {
+		logEntry.SetFromJsonMap(parsedLogLine, keywords)
+	}
+
+	return logEntry
+}
+
+func sendToSink(ctx context.Context, logEntryCh chan<- *logentry.LogEntry, logEntry *logentry.LogEntry) {
+	select {
+	case <-ctx.Done():
+		return
+	case logEntryCh <- logEntry:
 	}
 }
 
@@ -101,29 +130,3 @@ func readAndParseContent(ctx context.Context, reader *bufio.Reader, keywords con
 //
 //	close(logEntryCh)
 //}
-
-func parseLogLine(line []byte, lineCount int, keywords config.KeywordConfig) *logentry.LogEntry {
-	logEntry := &logentry.LogEntry{
-		LineNumber:      lineCount,
-		OriginalLogLine: line,
-		Fields:          make(map[string]string),
-	}
-
-	parsedLogLine := make(map[string]interface{}, 0)
-
-	if err := json.Unmarshal(line, &parsedLogLine); err != nil {
-		logEntry.SetOriginalLogLine(line)
-	} else {
-		logEntry.SetFromJsonMap(parsedLogLine, keywords)
-	}
-
-	return logEntry
-}
-
-func sendToSink(ctx context.Context, logEntryCh chan<- *logentry.LogEntry, logEntry *logentry.LogEntry) {
-	select {
-	case <-ctx.Done():
-		return
-	case logEntryCh <- logEntry:
-	}
-}

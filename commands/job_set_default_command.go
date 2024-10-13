@@ -56,7 +56,7 @@ type jobSetDefaultCommandArgs struct {
 }
 
 func parseJobSetDefaultCommandArgs(args cli.Args) (*jobSetDefaultCommandArgs, error) {
-	jobIndex, jobName, err := parseJobNameOrIndex(args.Get(0))
+	jobIndex, jobName, err := parseJobNameOrIndex(args.Get(0), true)
 	if err != nil {
 		return nil, err
 	}

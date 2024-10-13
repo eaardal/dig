@@ -115,8 +115,8 @@ func readCacheFiles(cacheId string, sinkCh chan<- *CacheFile) error {
 			}
 
 			sinkCh <- &CacheFile{
-				FileName: fileName,
-				Content:  content,
+				FileName:    fileName,
+				FileContent: content,
 			}
 		}(file.Name())
 	}

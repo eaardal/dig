@@ -57,7 +57,7 @@ type jobRemoveCommandArgs struct {
 }
 
 func parseJobRemoveCommandArgs(args cli.Args) (*jobRemoveCommandArgs, error) {
-	jobIndex, jobName, err := parseJobNameOrIndex(args.Get(0))
+	jobIndex, jobName, err := parseJobNameOrIndex(args.Get(0), true)
 	if err != nil {
 		return nil, err
 	}
