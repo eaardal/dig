@@ -5,9 +5,13 @@ import (
 	"strconv"
 )
 
-func parseJobNameOrIndex(nameOrIndex string) (*int, *string, error) {
-	if nameOrIndex == "" {
+func parseJobNameOrIndex(nameOrIndex string, required bool) (*int, *string, error) {
+	if nameOrIndex == "" && required {
 		return nil, nil, cli.Exit("job name or index is required", 1)
+	}
+
+	if nameOrIndex == "" {
+		return nil, nil, nil
 	}
 
 	var jobName *string

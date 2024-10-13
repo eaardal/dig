@@ -6,9 +6,10 @@ import (
 	"github.com/eaardal/dig/utils"
 	"os"
 	"path/filepath"
+	"sync"
 )
 
-func CacheDirPath(cacheId string) (string, error) {
+func getCacheDirPath(cacheId string) (string, error) {
 	defaultConfigDir, err := os.UserConfigDir()
 	if err != nil {
 		return "", fmt.Errorf("could not determine home directory: %w", err)
@@ -18,8 +19,8 @@ func CacheDirPath(cacheId string) (string, error) {
 	return filePath, nil
 }
 
-func CacheDirExists(cacheId string) bool {
-	filePath, err := CacheDirPath(cacheId)
+func cacheDirExists(cacheId string) bool {
+	filePath, err := getCacheDirPath(cacheId)
 	if err != nil {
 		return false
 	}
@@ -28,12 +29,12 @@ func CacheDirExists(cacheId string) bool {
 	return !os.IsNotExist(err)
 }
 
-func CreateCacheDirIfNotExist(cacheId string) error {
-	if CacheDirExists(cacheId) {
+func createCacheDirIfNotExist(cacheId string) error {
+	if cacheDirExists(cacheId) {
 		return nil
 	}
 
-	cacheDirPath, err := CacheDirPath(cacheId)
+	cacheDirPath, err := getCacheDirPath(cacheId)
 	if err != nil {
 		return err
 	}
@@ -49,7 +50,7 @@ func CreateCacheDirIfNotExist(cacheId string) error {
 // If the file already exists, it will be overwritten.
 // If the file does not exist, it will be created.
 func writeToCacheFile(cacheId, fileName string, content []byte) error {
-	cacheDirPath, err := CacheDirPath(cacheId)
+	cacheDirPath, err := getCacheDirPath(cacheId)
 	if err != nil {
 		return err
 	}
@@ -66,7 +67,7 @@ func writeToCacheFile(cacheId, fileName string, content []byte) error {
 // If the file does not exist, it will be created.
 // If the file exists, content will be appended to the end of the file.
 func appendToCacheFile(cacheId, fileName string, content []byte) error {
-	cacheDirPath, err := CacheDirPath(cacheId)
+	cacheDirPath, err := getCacheDirPath(cacheId)
 	if err != nil {
 		return err
 	}
@@ -84,4 +85,52 @@ func appendToCacheFile(cacheId, fileName string, content []byte) error {
 
 	utils.CloseOrPanic(file.Close)
 	return nil
+}
+
+func readCacheFiles(cacheId string, sinkCh chan<- *CacheFile) error {
+	cacheDirPath, err := getCacheDirPath(cacheId)
+	if err != nil {
+		return err
+	}
+
+	files, err := os.ReadDir(cacheDirPath)
+	if err != nil {
+		return fmt.Errorf("failed to read cache directory at %s: %w", cacheDirPath, err)
+	}
+
+	var wg sync.WaitGroup
+	errCh := make(chan error, 1)
+	doneCh := make(chan struct{})
+
+	for _, file := range files {
+		wg.Add(1)
+
+		go func(fileName string) {
+			defer wg.Done()
+
+			content, err := os.ReadFile(filepath.Join(cacheDirPath, fileName))
+			if err != nil {
+				errCh <- fmt.Errorf("failed to read cache file at %s: %w", fileName, err)
+				return
+			}
+
+			sinkCh <- &CacheFile{
+				FileName: fileName,
+				Content:  content,
+			}
+		}(file.Name())
+	}
+
+	go func() {
+		wg.Wait()
+		close(doneCh)
+		close(sinkCh)
+	}()
+
+	select {
+	case err := <-errCh:
+		return err
+	case <-doneCh:
+		return nil
+	}
 }

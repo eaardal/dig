@@ -30,24 +30,21 @@ var SyncCommand = &cli.Command{
 			return err
 		}
 
-		var job *digfile.Job
-
-		if args.jobName == nil && args.jobIndex == nil {
-			job = digf.GetDefaultJob()
-		} else if args.jobIndex != nil {
-			job, err = digf.GetJobByIndex(*args.jobIndex)
-			if err != nil {
-				return err
-			}
-		} else if args.jobName != nil {
-			job, err = digf.GetJobByName(*args.jobName)
-			if err != nil {
-				return err
-			}
+		job, err := digf.GetJob(args.jobName, args.jobIndex)
+		if err != nil {
+			return err
 		}
 
 		if job == nil {
 			return cli.Exit("No job found. Try setting a job as default or specify a job name or index when invoking the command", 1)
+		}
+
+		if args.jobName == nil && args.jobIndex == nil {
+			ui.Write(fmt.Sprintf("Using the default job: %s", job.Name))
+		}
+
+		if err := digfile.ValidateKubernetesConfigExistsForJob(job); err != nil {
+			return cli.Exit(fmt.Sprintf("Job is invalid: %v", err), 1)
 		}
 
 		client, err := k8s.Client(job.Kubernetes.ContextName, job.Kubernetes.Namespace)
@@ -55,7 +52,7 @@ var SyncCommand = &cli.Command{
 			return err
 		}
 
-		k8sLogChunks := make(chan *k8s.LogMsg)
+		k8sLogChunks := make(chan *k8s.LogChunk)
 		cacheFiles := make(chan *localstorage.CacheFile)
 
 		group, gctx := errgroup.WithContext(c.Context)
@@ -75,14 +72,14 @@ var SyncCommand = &cli.Command{
 		if err := group.Wait(); err != nil {
 			return err
 		}
-		
+
 		ui.Write("Sync complete")
 
 		return nil
 	},
 }
 
-func mapKubernetesLogChunksToCacheFile(sourceCh <-chan *k8s.LogMsg, sinkCh chan<- *localstorage.CacheFile) error {
+func mapKubernetesLogChunksToCacheFile(sourceCh <-chan *k8s.LogChunk, sinkCh chan<- *localstorage.CacheFile) error {
 	defer close(sinkCh)
 
 	for logMsg := range sourceCh {
@@ -93,10 +90,10 @@ func mapKubernetesLogChunksToCacheFile(sourceCh <-chan *k8s.LogMsg, sinkCh chan<
 	return nil
 }
 
-func mapLogMsgToCacheFile(logMsg *k8s.LogMsg) *localstorage.CacheFile {
+func mapLogMsgToCacheFile(logMsg *k8s.LogChunk) *localstorage.CacheFile {
 	return &localstorage.CacheFile{
-		FileName: fmt.Sprintf("%s.log", logMsg.Origin),
-		Content:  logMsg.LogChunk,
+		FileName:    fmt.Sprintf("%s.log", logMsg.Origin),
+		FileContent: logMsg.LogChunk,
 	}
 }
 
@@ -108,10 +105,13 @@ type syncCommandArgs struct {
 func parseSyncCommandArgs(c *cli.Context) (*syncCommandArgs, error) {
 	args := c.Args()
 	if args.Len() == 0 {
-		return nil, cli.Exit("job name is required", 1)
+		return &syncCommandArgs{
+			jobName:  nil,
+			jobIndex: nil,
+		}, nil
 	}
 
-	jobIndex, jobName, err := parseJobNameOrIndex(args.Get(0))
+	jobIndex, jobName, err := parseJobNameOrIndex(args.Get(0), false)
 	if err != nil {
 		return nil, err
 	}

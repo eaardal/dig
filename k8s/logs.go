@@ -12,13 +12,13 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-type LogMsg struct {
+type LogChunk struct {
 	Origin   string
 	LogChunk []byte
 }
 
 // ReadLogs fetches logs from all pods in the specified Kubernetes deployments in parallel.
-func ReadLogs(ctx context.Context, client *kubernetes.Clientset, namespace string, deploymentNames []string, sinkCh chan<- *LogMsg) error {
+func ReadLogs(ctx context.Context, client *kubernetes.Clientset, namespace string, deploymentNames []string, sinkCh chan<- *LogChunk) error {
 	var wg sync.WaitGroup
 	errCh := make(chan error, len(deploymentNames))
 
@@ -58,7 +58,7 @@ func ReadLogs(ctx context.Context, client *kubernetes.Clientset, namespace strin
 	}
 }
 
-func getPodLogs(ctx context.Context, client *kubernetes.Clientset, namespace, podName string, sinkCh chan<- *LogMsg) error {
+func getPodLogs(ctx context.Context, client *kubernetes.Clientset, namespace, podName string, sinkCh chan<- *LogChunk) error {
 	ui.Write("Fetching logs for pod %s...", podName)
 
 	logsRequest := client.CoreV1().Pods(namespace).GetLogs(podName, &v1.PodLogOptions{})
@@ -83,7 +83,7 @@ func getPodLogs(ctx context.Context, client *kubernetes.Clientset, namespace, po
 		logChunk := make([]byte, n)
 		copy(logChunk, buf[:n])
 
-		logMsg := &LogMsg{
+		logMsg := &LogChunk{
 			Origin:   podName,
 			LogChunk: logChunk,
 		}

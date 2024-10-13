@@ -7,6 +7,7 @@ import (
 	"github.com/eaardal/dig/digfile"
 	"github.com/eaardal/dig/k8s"
 	"github.com/eaardal/dig/ui/interactiveselectlist"
+	"github.com/eaardal/dig/utils"
 	"github.com/urfave/cli/v2"
 )
 
@@ -47,6 +48,10 @@ var JobCreateCommand = &cli.Command{
 
 		if digf.HasJob(args.jobName) {
 			return fmt.Errorf("job with name %s already exists", args.jobName)
+		}
+
+		if utils.ContainsSpecialChars(args.jobName) {
+			return fmt.Errorf("job name cannot contain special characters. Only letters, numbers, underscores and hyphens are allowed")
 		}
 
 		namespace := args.k8sNamespace

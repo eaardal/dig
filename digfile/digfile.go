@@ -72,82 +72,13 @@ func (d *Digfile) SetAllJobsNotDefault() {
 	}
 }
 
-func (d *Digfile) GetDefaultJob() *Job {
-	for _, job := range d.Jobs {
-		if job.IsDefault {
-			return job
-		}
-	}
-	return nil
-}
-
-func (d *Digfile) IsAnyJobDefault() bool {
+func (d *Digfile) HasAnyDefaultJob() bool {
 	for _, job := range d.Jobs {
 		if job.IsDefault {
 			return true
 		}
 	}
 	return false
-}
-
-func (d *Digfile) Validate() []error {
-	var errs []error
-
-	if err := d.validateJobNamesAreUnique(); err != nil {
-		errs = append(errs, err)
-	}
-
-	if err := d.validateKubernetesConfigExists(); err != nil {
-		errs = append(errs, err)
-	}
-
-	if err := d.validateOnlyOneDefaultJob(); err != nil {
-		errs = append(errs, err)
-	}
-
-	return errs
-}
-
-func (d *Digfile) validateJobNamesAreUnique() error {
-	jobNames := make(map[string]bool)
-	for _, job := range d.Jobs {
-		if jobNames[job.Name] {
-			return fmt.Errorf("job names must be unique, but job name %s is used more than once", job.Name)
-		}
-		jobNames[job.Name] = true
-	}
-	return nil
-}
-
-func (d *Digfile) validateKubernetesConfigExists() error {
-	for _, job := range d.Jobs {
-		if job.Kubernetes == nil {
-			return fmt.Errorf("job %s is missing Kubernetes configuration", job.Name)
-		}
-		if job.Kubernetes.ContextName == "" {
-			return fmt.Errorf("job %s is missing Kubernetes context name", job.Name)
-		}
-		if job.Kubernetes.Namespace == "" {
-			return fmt.Errorf("job %s is missing Kubernetes namespace", job.Name)
-		}
-		if len(job.Kubernetes.DeploymentNames) == 0 {
-			return fmt.Errorf("job %s is missing Kubernetes deployment names", job.Name)
-		}
-	}
-	return nil
-}
-
-func (d *Digfile) validateOnlyOneDefaultJob() error {
-	defaultJobCount := 0
-	for _, job := range d.Jobs {
-		if job.IsDefault {
-			defaultJobCount++
-		}
-	}
-	if defaultJobCount > 1 {
-		return fmt.Errorf("only one job can be marked as default, but %d jobs are marked as default", defaultJobCount)
-	}
-	return nil
 }
 
 func (d *Digfile) HasJob(name string) bool {
@@ -159,13 +90,22 @@ func (d *Digfile) HasJob(name string) bool {
 	return false
 }
 
-func (d *Digfile) GetJobByName(job string) (*Job, error) {
-	for _, j := range d.Jobs {
-		if j.Name == job {
-			return j, nil
+func (d *Digfile) GetDefaultJob() *Job {
+	for _, job := range d.Jobs {
+		if job.IsDefault {
+			return job
 		}
 	}
-	return nil, fmt.Errorf("job %s not found", job)
+	return nil
+}
+
+func (d *Digfile) GetJobByName(job string) *Job {
+	for _, j := range d.Jobs {
+		if j.Name == job {
+			return j
+		}
+	}
+	return nil
 }
 
 func (d *Digfile) GetJobByIndex(index int) (*Job, error) {
@@ -173,4 +113,32 @@ func (d *Digfile) GetJobByIndex(index int) (*Job, error) {
 		return nil, fmt.Errorf("job index out of bounds")
 	}
 	return d.Jobs[index], nil
+}
+
+func (d *Digfile) GetJob(jobName *string, jobIndex *int) (*Job, error) {
+	if jobName == nil && jobIndex == nil {
+		return d.GetDefaultJob(), nil
+	} else if jobIndex != nil {
+		return d.GetJobByIndex(*jobIndex)
+	} else {
+		return d.GetJobByName(*jobName), nil
+	}
+}
+
+func (d *Digfile) Validate() []error {
+	var errs []error
+
+	if err := ValidateJobNamesAreUnique(d.Jobs); err != nil {
+		errs = append(errs, err)
+	}
+
+	if err := ValidateKubernetesConfigExistsForJobs(d.Jobs); err != nil {
+		errs = append(errs, err)
+	}
+
+	if err := ValidateOnlyOneDefaultJob(d.Jobs); err != nil {
+		errs = append(errs, err)
+	}
+
+	return errs
 }
