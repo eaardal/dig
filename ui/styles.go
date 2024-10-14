@@ -2,6 +2,8 @@ package ui
 
 import (
 	"github.com/charmbracelet/lipgloss"
+	"hash/fnv"
+	"math/rand"
 )
 
 var PastelPink = lipgloss.Color("#F78DA7")
@@ -27,6 +29,56 @@ var FadedRed = lipgloss.Color("#E5A39B")
 var FadedLavender = lipgloss.Color("#D6CCDD")
 var FadedGrey = lipgloss.Color("#C2C2C2")
 var FadedWhite = lipgloss.Color("#E0E0E0")
+
+var AllPastelColors = []lipgloss.Color{
+	PastelPink,
+	PastelBlue,
+	PastelGreen,
+	PastelYellow,
+	PastelPurple,
+	PastelOrange,
+	PastelTeal,
+	PastelRed,
+	PastelLavender,
+	PastelGrey,
+	PastelWhite,
+}
+
+var AllFadedColors = []lipgloss.Color{
+	FadedPink,
+	FadedBlue,
+	FadedGreen,
+	FadedYellow,
+	FadedPurple,
+	FadedOrange,
+	FadedTeal,
+	FadedRed,
+	FadedLavender,
+	FadedGrey,
+	FadedWhite,
+}
+
+var AllColors = append(AllPastelColors, AllFadedColors...)
+
+func RandomPastelColor() lipgloss.Color {
+	return AllPastelColors[rand.Intn(len(AllPastelColors))]
+}
+
+func RandomFadedColor() lipgloss.Color {
+	return AllFadedColors[rand.Intn(len(AllFadedColors))]
+}
+
+func hashStringToUint32(s string) uint32 {
+	h := fnv.New32a()
+	_, _ = h.Write([]byte(s))
+	return h.Sum32()
+}
+
+func RandomPastelColorForValue(value string) lipgloss.Color {
+	hashValue := hashStringToUint32(value)
+	colorIndex := int(hashValue) % len(AllPastelColors)
+	return AllPastelColors[colorIndex]
+}
 
 var Styles = AppStyles{
 	CursorStyle: lipgloss.NewStyle().Bold(true).Foreground(PastelRed),

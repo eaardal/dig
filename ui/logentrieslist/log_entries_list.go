@@ -7,6 +7,8 @@ import (
 	"github.com/eaardal/dig/logentry"
 	"github.com/eaardal/dig/ui"
 	"github.com/eaardal/dig/viewcontroller"
+	"regexp"
+	"strings"
 	"time"
 )
 
@@ -57,28 +59,11 @@ func contains(slice []string, s string) bool {
 
 func (m Model) View() string {
 	view := ""
-
-	distinctOrigins := []string{}
-	for _, entry := range m.viewEntries {
-		if !contains(distinctOrigins, entry.Origin) {
-			distinctOrigins = append(distinctOrigins, entry.Origin)
-		}
-	}
-	originColorCodes := []lipgloss.Color{ui.PastelOrange, ui.PastelPurple, ui.PastelTeal, ui.PastelPink, ui.PastelLavender}
-	originColors := map[string]lipgloss.Color{}
-
-	colorIndex := 0
-	for i, origin := range distinctOrigins {
-		if i >= len(originColorCodes) {
-			colorIndex = 0
-		} else {
-			colorIndex = i
-		}
-		originColors[origin] = originColorCodes[colorIndex]
-	}
+	originBaseColors := prepareOriginBaseColors(m.viewEntries)
 
 	for index, entry := range m.viewEntries {
 		cursor := renderCursor(index == m.cursor, ui.Styles.CursorStyle)
+		origin := renderOrigin(entry.Origin, ui.Styles.LogEntryStyles.OriginStyle, originBaseColors)
 
 		if m.showNearbyLogEntries && index == m.cursor {
 			for _, entryBefore := range entry.LogEntriesBefore {
@@ -87,7 +72,7 @@ func (m Model) View() string {
 		}
 
 		numBefore, numAfter := getNumberOfNearbyLogEntries(entry, m.showNearbyLogEntries)
-		view += cursor + " " + formatLine(entry.Origin, entry.LogEntry, index, numBefore, numAfter)
+		view += formatLine(entry.LogEntry, origin, cursor, index, numBefore, numAfter)
 
 		if m.showNearbyLogEntries && index == m.cursor {
 			for _, entryAfter := range entry.LogEntriesAfter {
@@ -99,23 +84,21 @@ func (m Model) View() string {
 	return view
 }
 
-func formatLine(origin string, logEntry *logentry.LogEntry, index int, numBefore int, numAfter int) string {
-	app := renderOrigin(origin, ui.Styles.LogEntryStyles.OriginStyle)
+func formatLine(logEntry *logentry.LogEntry, origin string, cursor string, index int, numBefore int, numAfter int) string {
 	timestamp := renderTimestamp(logEntry.Time, ui.Styles.LogEntryStyles.TimestampStyle)
 	level := renderLevel(logEntry.Level, ui.Styles.LogEntryStyles.LevelStyle)
 	msg := renderMessage(logEntry.Message, ui.Styles.LogEntryStyles.MessageStyle)
 	lineNumber := renderLineNumber(index, numBefore, numAfter, ui.Styles.LogEntryStyles.LineNumberStyle)
 
-	return fmt.Sprintf("%s %s - %s - %s - %s\n", lineNumber, app, timestamp, level, msg)
+	return fmt.Sprintf("%s %s %s - %s - %s - %s\n", cursor, lineNumber, origin, timestamp, level, msg)
 }
 
 func formatNearbyLine(origin string, logEntry *logentry.LogEntry) string {
-	app := renderOrigin(origin, ui.Styles.NearbyLogEntryStyles.OriginStyle)
 	timestamp := renderTimestamp(logEntry.Time, ui.Styles.NearbyLogEntryStyles.TimestampStyle)
 	level := renderLevel(logEntry.Level, ui.Styles.NearbyLogEntryStyles.LevelStyle)
 	msg := renderMessage(logEntry.Message, ui.Styles.NearbyLogEntryStyles.MessageStyle)
 
-	return fmt.Sprintf("\t%s - %s - %s - %s\n", app, timestamp, level, msg)
+	return fmt.Sprintf("\t%s - %s - %s - %s\n", origin, timestamp, level, msg)
 }
 
 func renderTimestamp(timestamp string, style lipgloss.Style) string {
@@ -129,8 +112,66 @@ func renderTimestamp(timestamp string, style lipgloss.Style) string {
 	return style.Render(formattedTime)
 }
 
-func renderOrigin(origin string, style lipgloss.Style) string {
-	return style.Render(origin)
+func renderOrigin(origin string, style lipgloss.Style, colors map[string]lipgloss.Color) string {
+	if isOriginKubernetesPodName(origin) {
+		_, _, replicaSetID := splitOriginIntoKubernetesPodIDParts(origin)
+		return renderKubernetesPodNameOrigin(origin, ui.Styles.LogEntryStyles.OriginStyle, colors, ui.RandomPastelColorForValue(replicaSetID))
+	}
+
+	color := colors[origin]
+	return style.Foreground(color).Render(origin)
+}
+
+func isOriginKubernetesPodName(origin string) bool {
+	var podIDRegex = regexp.MustCompile(`^[a-z0-9]([-a-z0-9.]*[a-z0-9])?$`)
+	return podIDRegex.MatchString(origin)
+}
+
+func renderKubernetesPodNameOrigin(podID string, style lipgloss.Style, colors map[string]lipgloss.Color, replicaSetPartColor lipgloss.Color) string {
+	parts := strings.Split(podID, "-")
+	deploymentID := strings.Join(parts[:len(parts)-1], "-")
+	replicaSetID := parts[len(parts)-1]
+	color := colors[podID]
+	return style.Render(fmt.Sprintf("%s-%s", style.Foreground(color).Render(deploymentID), style.Foreground(replicaSetPartColor).Render(replicaSetID)))
+}
+
+func prepareOriginBaseColors(viewEntries []*viewcontroller.ViewEntry) map[string]lipgloss.Color {
+	originBaseColors := make(map[string]lipgloss.Color)
+
+	distinctOrigins := make([]string, 0)
+	for _, entry := range viewEntries {
+		if !contains(distinctOrigins, entry.Origin) {
+			distinctOrigins = append(distinctOrigins, entry.Origin)
+		}
+	}
+
+	distinctDeploymentIDs := make([]string, 0)
+	for i, origin := range distinctOrigins {
+		if isOriginKubernetesPodName(origin) {
+			_, deploymentID, _ := splitOriginIntoKubernetesPodIDParts(origin)
+			if !contains(distinctDeploymentIDs, deploymentID) {
+				distinctDeploymentIDs = append(distinctDeploymentIDs, deploymentID)
+			}
+		} else {
+			originBaseColors[origin] = ui.AllColors[i%len(ui.AllColors)]
+		}
+	}
+
+	if len(distinctDeploymentIDs) > 0 {
+		for i, deploymentID := range distinctDeploymentIDs {
+			originBaseColors[deploymentID] = ui.AllColors[i%len(ui.AllColors)]
+		}
+	}
+
+	return originBaseColors
+}
+
+func splitOriginIntoKubernetesPodIDParts(origin string) (appName, deploymentID, replicaSetID string) {
+	parts := strings.Split(origin, "-")
+	appName = strings.Join(parts[:len(parts)-2], "-")
+	deploymentID = strings.Join(parts[:len(parts)-1], "-")
+	replicaSetID = parts[len(parts)-1]
+	return
 }
 
 func renderLevel(level string, style lipgloss.Style) string {
