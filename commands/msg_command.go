@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"flag"
 	"fmt"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/eaardal/dig/digfile"
@@ -20,6 +21,37 @@ var MsgCommand = &cli.Command{
 	Flags: []cli.Flag{
 		&cli.StringFlag{
 			Name:     "job",
+			Usage:    "Name or index of the job to search in. If not specified, the default job will be used",
+			Required: false,
+		},
+		&cli.IntFlag{
+			Name:     "before",
+			Usage:    "Number of log entries before the search result to display",
+			Value:    10,
+			Required: false,
+		},
+		&cli.IntFlag{
+			Name:     "after",
+			Usage:    "Number of log entries after the search result to display",
+			Value:    10,
+			Required: false,
+		},
+		&cli.BoolFlag{
+			Name:     "sync",
+			Usage:    "Sync logs before searching",
+			Value:    false,
+			Required: false,
+		},
+		&cli.BoolFlag{
+			Name:     "case-sensitive",
+			Usage:    "Perform case-sensitive search",
+			Value:    false,
+			Required: false,
+		},
+		&cli.BoolFlag{
+			Name:     "exact",
+			Usage:    "Perform exact match search. If not specified, the search query will be treated as a substring",
+			Value:    false,
 			Required: false,
 		},
 	},
@@ -43,9 +75,17 @@ var MsgCommand = &cli.Command{
 			return cli.Exit("No job found. Try setting a job as default or specify a job name or index when invoking the command", 1)
 		}
 
+		if args.syncFirst {
+			if err := runSyncCommand(c, job.Name); err != nil {
+				return err
+			}
+		}
+
 		searchParams := search.Params{
-			Query:     args.query,
-			InMessage: true,
+			Query:         args.query,
+			InMessage:     true,
+			CaseSensitive: args.caseSensitive,
+			Exact:         args.exactMatch,
 		}
 
 		fileCh := make(chan *localstorage.CacheFile)
@@ -74,8 +114,8 @@ var MsgCommand = &cli.Command{
 			}
 
 			opts := viewcontroller.Options{
-				NumLogEntriesBefore: 10,
-				NumLogEntriesAfter:  10,
+				NumLogEntriesBefore: args.numLogEntriesBefore,
+				NumLogEntriesAfter:  args.numLogEntriesAfter,
 			}
 
 			viewEntries, err := viewcontroller.PrepareSearchResultsForDisplay(results, opts)
@@ -90,8 +130,6 @@ var MsgCommand = &cli.Command{
 				return err
 			}
 
-			//selectedDeployments := appState.(interactiveselectlist.Model).GetSelectedChoices()
-
 			return nil
 		})
 
@@ -101,6 +139,14 @@ var MsgCommand = &cli.Command{
 
 		return nil
 	},
+}
+
+func runSyncCommand(c *cli.Context, jobName string) error {
+	syncFlags := &flag.FlagSet{}
+	syncFlags.String("job", jobName, "")
+
+	syncCtx := cli.NewContext(c.App, syncFlags, c)
+	return SyncCommand.Action(syncCtx)
 }
 
 func bridgeCacheFileToLogFile(fileCh chan *localstorage.CacheFile) chan logparser.LogFile {
@@ -118,9 +164,14 @@ func bridgeCacheFileToLogFile(fileCh chan *localstorage.CacheFile) chan logparse
 }
 
 type msgCommandArgs struct {
-	jobName  *string
-	jobIndex *int
-	query    string
+	jobName             *string
+	jobIndex            *int
+	query               string
+	numLogEntriesBefore int
+	numLogEntriesAfter  int
+	syncFirst           bool
+	caseSensitive       bool
+	exactMatch          bool
 }
 
 func parseMsgCommandArgs(c *cli.Context) (*msgCommandArgs, error) {
@@ -141,8 +192,13 @@ func parseMsgCommandArgs(c *cli.Context) (*msgCommandArgs, error) {
 	}
 
 	return &msgCommandArgs{
-		jobName:  jobName,
-		jobIndex: jobIndex,
-		query:    query,
+		jobName:             jobName,
+		jobIndex:            jobIndex,
+		query:               query,
+		numLogEntriesBefore: c.Int("before"),
+		numLogEntriesAfter:  c.Int("after"),
+		syncFirst:           c.Bool("sync"),
+		caseSensitive:       c.Bool("case-sensitive"),
+		exactMatch:          c.Bool("exact"),
 	}, nil
 }

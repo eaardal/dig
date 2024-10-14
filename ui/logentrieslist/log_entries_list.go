@@ -6,19 +6,21 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/eaardal/dig/logentry"
 	"github.com/eaardal/dig/ui"
+	"github.com/eaardal/dig/unicode"
 	"github.com/eaardal/dig/utils"
 	"github.com/eaardal/dig/viewcontroller"
 	"time"
 )
 
 type Model struct {
-	viewEntries          []*viewcontroller.ViewEntry
-	cursor               int
-	showNearbyLogEntries bool
+	viewEntries                 []*viewcontroller.ViewEntry
+	cursor                      int
+	showClosestNearbyLogEntries bool
+	showAllNearbyLogEntries     bool
 }
 
 func NewModel(viewEntries []*viewcontroller.ViewEntry) Model {
-	return Model{viewEntries, 0, false}
+	return Model{viewEntries, len(viewEntries) - 1, false, false}
 }
 
 func (m Model) Init() tea.Cmd {
@@ -40,7 +42,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.cursor++
 			}
 		case "d":
-			m.showNearbyLogEntries = !m.showNearbyLogEntries
+			m.showClosestNearbyLogEntries = !m.showClosestNearbyLogEntries
+		case "f":
+			m.showAllNearbyLogEntries = !m.showAllNearbyLogEntries
 		}
 	}
 
@@ -53,26 +57,110 @@ func (m Model) View() string {
 	for index, entry := range m.viewEntries {
 		cursor := renderCursor(index == m.cursor, ui.Styles.Cursor)
 		origin := renderOrigin(entry.Origin, ui.Styles.LogEntry.Origin)
+		numBefore, numAfter := getNumberOfNearbyLogEntries(entry, m.showClosestNearbyLogEntries)
 
-		if m.showNearbyLogEntries && index == m.cursor {
-			for _, entryBefore := range entry.LogEntriesBefore {
-				view += formatNearbyLine(entry.Origin, entryBefore)
-			}
+		if m.showClosestNearbyLogEntries && index == m.cursor {
+			view += renderLogEntriesBefore(view, entry, m.showAllNearbyLogEntries)
 		}
 
-		numBefore, numAfter := getNumberOfNearbyLogEntries(entry, m.showNearbyLogEntries)
 		view += formatLine(entry.LogEntry, origin, cursor, index, numBefore, numAfter)
 
-		if m.showNearbyLogEntries && index == m.cursor {
-			for _, entryAfter := range entry.LogEntriesAfter {
-				view += formatNearbyLine(entry.Origin, entryAfter)
-			}
+		if m.showClosestNearbyLogEntries && index == m.cursor {
+			view += renderLogEntriesAfter(view, entry, m.showAllNearbyLogEntries)
 		}
 	}
 
 	view += "Press ctrl+c or q to quit"
 
 	return view
+}
+
+func renderLogEntriesBefore(view string, entry *viewcontroller.ViewEntry, showAllNearbyLogEntries bool) string {
+	nearbyLogEntriesBefore := getNearbyLogEntriesBefore(entry, showAllNearbyLogEntries)
+
+	view += "\n"
+	view += renderLogEntriesBeforeBracketTop(len(nearbyLogEntriesBefore), entry.NumLogEntriesToPreviousMatch)
+
+	for _, entryBefore := range nearbyLogEntriesBefore {
+		view += renderLogEntriesBeforeLine(formatNearbyLine(entry.Origin, entryBefore))
+	}
+
+	view += renderLogEntriesBeforeBracketBottom()
+	view += "\n"
+
+	return view
+}
+
+func renderLogEntriesAfter(view string, entry *viewcontroller.ViewEntry, showAllNearbyLogEntries bool) string {
+	nearbyLogEntriesAfter := getNearbyLogEntriesAfter(entry, showAllNearbyLogEntries)
+
+	view += "\n"
+	view += renderLogEntriesAfterBracketTop(len(nearbyLogEntriesAfter), entry.NumLogEntriesToNextMatch)
+
+	for _, entryAfter := range nearbyLogEntriesAfter {
+		view += renderLogEntriesAfterLine(formatNearbyLine(entry.Origin, entryAfter))
+	}
+
+	view += renderLogEntriesAfterBracketBottom()
+	view += "\n"
+
+	return view
+}
+
+func renderLogEntriesBeforeBracketTop(showing int, total int) string {
+	if showing > total {
+		showing = total
+	}
+	return unicode.BracketTopWithText(ui.Styles.NearbyLogEntriesBracket, ui.Styles.NearbyLogEntriesBracketText, "Log entries before (showing %d/%d):", showing, total)
+}
+
+func renderLogEntriesBeforeBracketBottom() string {
+	return unicode.BracketBottomWithText(ui.Styles.NearbyLogEntriesBracket, ui.Styles.NearbyLogEntriesBracketText, "End")
+}
+
+func renderLogEntriesBeforeLine(line string) string {
+	return unicode.PrefixVerticalLine(ui.Styles.NearbyLogEntriesBracket, line)
+}
+
+func renderLogEntriesAfterBracketTop(showing int, total int) string {
+	if showing > total {
+		showing = total
+	}
+	return unicode.BracketTopWithText(ui.Styles.NearbyLogEntriesBracket, ui.Styles.NearbyLogEntriesBracketText, "Log entries after (showing %d/%d):", showing, total)
+}
+
+func renderLogEntriesAfterBracketBottom() string {
+	return unicode.BracketBottomWithText(ui.Styles.NearbyLogEntriesBracket, ui.Styles.NearbyLogEntriesBracketText, "End")
+}
+
+func renderLogEntriesAfterLine(line string) string {
+	return unicode.PrefixVerticalLine(ui.Styles.NearbyLogEntriesBracket, line)
+}
+
+func getNearbyLogEntriesBefore(entry *viewcontroller.ViewEntry, showAll bool) []*logentry.LogEntry {
+	if showAll {
+		return entry.LogEntriesBefore
+	}
+
+	take := entry.NumPreviousLogEntriesToShow
+	if len(entry.LogEntriesBefore) < take {
+		take = len(entry.LogEntriesBefore)
+	}
+
+	return entry.LogEntriesBefore[:take]
+}
+
+func getNearbyLogEntriesAfter(entry *viewcontroller.ViewEntry, showAll bool) []*logentry.LogEntry {
+	if showAll {
+		return entry.LogEntriesAfter
+	}
+
+	take := entry.NumNextLogEntriesToShow
+	if len(entry.LogEntriesAfter) < take {
+		take = len(entry.LogEntriesAfter)
+	}
+
+	return entry.LogEntriesAfter[:take]
 }
 
 func formatLine(logEntry *logentry.LogEntry, origin string, cursor string, index int, numBefore int, numAfter int) string {
@@ -89,7 +177,7 @@ func formatNearbyLine(origin string, logEntry *logentry.LogEntry) string {
 	level := renderLevel(logEntry.Level, ui.Styles.NearbyLogEntry.Level)
 	msg := renderMessage(logEntry.Message, ui.Styles.NearbyLogEntry.Message)
 
-	return fmt.Sprintf("\t%s - %s - %s - %s\n", origin, timestamp, level, msg)
+	return fmt.Sprintf("%s - %s - %s - %s\n", origin, timestamp, level, msg)
 }
 
 func renderTimestamp(timestamp string, style lipgloss.Style) string {
@@ -105,14 +193,14 @@ func renderTimestamp(timestamp string, style lipgloss.Style) string {
 
 func renderOrigin(origin string, style lipgloss.Style) string {
 	if utils.IsValueKubernetesPodID(origin) {
-		return renderKubernetesPodNameOrigin(origin, ui.Styles.LogEntry.Origin)
+		return renderKubernetesPodIDOrigin(origin, ui.Styles.LogEntry.Origin)
 	}
 
 	color := ui.GetPastelColorForValue(origin)
 	return style.Foreground(color).Render(origin)
 }
 
-func renderKubernetesPodNameOrigin(podID string, style lipgloss.Style) string {
+func renderKubernetesPodIDOrigin(podID string, style lipgloss.Style) string {
 	_, deploymentID, replicaSetID := utils.SplitIntoKubernetesPodIDParts(podID)
 	deploymentColor := ui.GetPastelColorForValue(deploymentID)
 	replicaSetColor := ui.GetPastelColorForValue(replicaSetID)

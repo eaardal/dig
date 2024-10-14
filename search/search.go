@@ -33,7 +33,7 @@ func search(logEntry *logentry.LogEntry, params Params) *Result {
 	}
 
 	if params.InMessage || params.Anywhere {
-		if isValueMatch(logEntry.Message, params.Query, params.CaseSensitive, false) {
+		if isValueMatch(logEntry.Message, params.Query, params.CaseSensitive, params.Exact) {
 			result.IsMatch = true
 			result.MatchLocations = append(result.MatchLocations, MatchLocationMessage)
 			return result
@@ -42,7 +42,7 @@ func search(logEntry *logentry.LogEntry, params Params) *Result {
 
 	if params.InFields || params.Anywhere {
 		for fieldKey, fieldValue := range logEntry.Fields {
-			if isValueMatch(fieldValue, params.Query, params.CaseSensitive, false) {
+			if isValueMatch(fieldValue, params.Query, params.CaseSensitive, params.Exact) {
 				result.IsMatch = true
 				result.MatchLocations = append(result.MatchLocations, fieldKey)
 				return result
@@ -75,7 +75,7 @@ func search(logEntry *logentry.LogEntry, params Params) *Result {
 		}
 
 		for fieldName, fieldValue := range fieldsToSearch {
-			if isValueMatch(fieldValue, params.Query, params.CaseSensitive, false) {
+			if isValueMatch(fieldValue, params.Query, params.CaseSensitive, params.Exact) {
 				result.IsMatch = true
 				result.MatchLocations = append(result.MatchLocations, fieldName)
 				return result

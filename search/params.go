@@ -13,4 +13,6 @@ type Params struct {
 	Anywhere bool
 	// Should the search be case-sensitive?
 	CaseSensitive bool
+	// Should the search be an exact match?
+	Exact bool
 }

@@ -6,6 +6,8 @@ import (
 	"math/rand"
 )
 
+var Grey = lipgloss.Color("#808080")
+
 var PastelPink = lipgloss.Color("#F78DA7")
 var PastelBlue = lipgloss.Color("#A7C7E7")
 var PastelGreen = lipgloss.Color("#A8E6CF")
@@ -85,12 +87,16 @@ var Styles = AppStyles{
 		Level:     lipgloss.NewStyle().Foreground(FadedBlue),
 		Message:   lipgloss.NewStyle().Foreground(FadedGrey),
 	},
+	NearbyLogEntriesBracket:     lipgloss.NewStyle().Foreground(Grey),
+	NearbyLogEntriesBracketText: lipgloss.NewStyle().Foreground(FadedGrey),
 }
 
 type AppStyles struct {
-	LogEntry       LogMessageStyles
-	NearbyLogEntry NearbyLogEntryStyles
-	Cursor         lipgloss.Style
+	LogEntry                    LogMessageStyles
+	NearbyLogEntry              NearbyLogEntryStyles
+	Cursor                      lipgloss.Style
+	NearbyLogEntriesBracket     lipgloss.Style
+	NearbyLogEntriesBracketText lipgloss.Style
 }
 
 type LogMessageStyles struct {

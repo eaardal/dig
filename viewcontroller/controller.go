@@ -14,6 +14,8 @@ type ViewEntry struct {
 	LogEntriesAfter              []*logentry.LogEntry
 	NumLogEntriesToPreviousMatch int
 	NumLogEntriesToNextMatch     int
+	NumPreviousLogEntriesToShow  int
+	NumNextLogEntriesToShow      int
 }
 
 type Options struct {
@@ -41,6 +43,8 @@ func PrepareSearchResultsForDisplay(searchResults []*search.Result, opts Options
 				LogEntriesAfter:              findNearbyLogEntries(searchResults, index, opts.NumLogEntriesAfter, after),
 				NumLogEntriesToPreviousMatch: countLogEntriesToNearbyMatch(searchResults, index, before),
 				NumLogEntriesToNextMatch:     countLogEntriesToNearbyMatch(searchResults, index, after),
+				NumPreviousLogEntriesToShow:  opts.NumLogEntriesBefore,
+				NumNextLogEntriesToShow:      opts.NumLogEntriesAfter,
 			})
 		}
 	}
@@ -52,7 +56,7 @@ func findNearbyLogEntries(searchResults []*search.Result, index int, numLogEntri
 	var logEntries []*logentry.LogEntry
 
 	if directon == before {
-		for i := index - 1; i >= 0 && len(logEntries) < numLogEntries; i-- {
+		for i := index - 1; i >= 0; i-- { // && len(logEntries) < numLogEntries
 			// Take log entries before the match, but stop if we encounter another match.
 			if searchResults[i].IsMatch {
 				break
@@ -61,7 +65,7 @@ func findNearbyLogEntries(searchResults []*search.Result, index int, numLogEntri
 			logEntries = append(logEntries, searchResults[i].LogEntry)
 		}
 	} else {
-		for i := index + 1; i < len(searchResults) && len(logEntries) < numLogEntries; i++ {
+		for i := index + 1; i < len(searchResults); i++ { // && len(logEntries) < numLogEntries
 			// Take log entries after the match, but stop if we encounter another match.
 			if searchResults[i].IsMatch {
 				break
