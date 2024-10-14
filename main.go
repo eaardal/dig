@@ -10,10 +10,10 @@ import (
 
 func main() {
 	app := &cli.App{
-		Name:  "boom",
-		Usage: "make an explosive entrance",
+		Name:  "dig",
+		Usage: "Dig for insight and and answers in your logs",
 		Action: func(*cli.Context) error {
-			fmt.Println("boom! I say!")
+			fmt.Println("You must specify a command. See --help for more information.")
 			return nil
 		},
 		Commands: []*cli.Command{

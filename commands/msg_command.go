@@ -85,7 +85,7 @@ var MsgCommand = &cli.Command{
 
 			model := logentrieslist.NewModel(viewEntries)
 
-			_, err = tea.NewProgram(model).Run()
+			_, err = tea.NewProgram(model, tea.WithAltScreen()).Run()
 			if err != nil {
 				return err
 			}

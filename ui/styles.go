@@ -3,7 +3,6 @@ package ui
 import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/eaardal/dig/utils"
-	"hash/fnv"
 	"math/rand"
 )
 
@@ -71,46 +70,40 @@ func GetPastelColorForValue(value string) lipgloss.Color {
 	return utils.DeterministicItemForValue(value, AllPastelColors)
 }
 
-func hashStringToUint32(s string) uint32 {
-	h := fnv.New32a()
-	_, _ = h.Write([]byte(s))
-	return h.Sum32()
-}
-
 var Styles = AppStyles{
-	CursorStyle: lipgloss.NewStyle().Bold(true).Foreground(PastelRed),
-	LogEntryStyles: LogMessageStyles{
-		LineNumberStyle: lipgloss.NewStyle().Italic(true).Foreground(PastelYellow),
-		OriginStyle:     lipgloss.NewStyle().Foreground(PastelPurple),
-		TimestampStyle:  lipgloss.NewStyle().Foreground(PastelBlue),
-		LevelStyle:      lipgloss.NewStyle().Foreground(PastelGreen),
-		MessageStyle:    lipgloss.NewStyle().Foreground(PastelWhite),
+	Cursor: lipgloss.NewStyle().Bold(true).Foreground(PastelRed),
+	LogEntry: LogMessageStyles{
+		LineNumber: lipgloss.NewStyle().Italic(true).Foreground(PastelYellow),
+		Origin:     lipgloss.NewStyle().Foreground(PastelPurple),
+		Timestamp:  lipgloss.NewStyle().Foreground(PastelBlue),
+		Level:      lipgloss.NewStyle().Foreground(PastelGreen),
+		Message:    lipgloss.NewStyle().Foreground(PastelWhite),
 	},
-	NearbyLogEntryStyles: NearbyLogEntryStyles{
-		OriginStyle:    lipgloss.NewStyle().Foreground(FadedPurple),
-		TimestampStyle: lipgloss.NewStyle().Foreground(FadedGreen),
-		LevelStyle:     lipgloss.NewStyle().Foreground(FadedBlue),
-		MessageStyle:   lipgloss.NewStyle().Foreground(FadedGrey),
+	NearbyLogEntry: NearbyLogEntryStyles{
+		Origin:    lipgloss.NewStyle().Foreground(FadedPurple),
+		Timestamp: lipgloss.NewStyle().Foreground(FadedGreen),
+		Level:     lipgloss.NewStyle().Foreground(FadedBlue),
+		Message:   lipgloss.NewStyle().Foreground(FadedGrey),
 	},
 }
 
 type AppStyles struct {
-	LogEntryStyles       LogMessageStyles
-	NearbyLogEntryStyles NearbyLogEntryStyles
-	CursorStyle          lipgloss.Style
+	LogEntry       LogMessageStyles
+	NearbyLogEntry NearbyLogEntryStyles
+	Cursor         lipgloss.Style
 }
 
 type LogMessageStyles struct {
-	LineNumberStyle lipgloss.Style
-	OriginStyle     lipgloss.Style
-	TimestampStyle  lipgloss.Style
-	LevelStyle      lipgloss.Style
-	MessageStyle    lipgloss.Style
+	LineNumber lipgloss.Style
+	Origin     lipgloss.Style
+	Timestamp  lipgloss.Style
+	Level      lipgloss.Style
+	Message    lipgloss.Style
 }
 
 type NearbyLogEntryStyles struct {
-	OriginStyle    lipgloss.Style
-	TimestampStyle lipgloss.Style
-	LevelStyle     lipgloss.Style
-	MessageStyle   lipgloss.Style
+	Origin    lipgloss.Style
+	Timestamp lipgloss.Style
+	Level     lipgloss.Style
+	Message   lipgloss.Style
 }

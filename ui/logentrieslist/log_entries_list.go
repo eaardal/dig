@@ -47,21 +47,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func contains(slice []string, s string) bool {
-	for _, item := range slice {
-		if item == s {
-			return true
-		}
-	}
-	return false
-}
-
 func (m Model) View() string {
 	view := ""
 
 	for index, entry := range m.viewEntries {
-		cursor := renderCursor(index == m.cursor, ui.Styles.CursorStyle)
-		origin := renderOrigin(entry.Origin, ui.Styles.LogEntryStyles.OriginStyle)
+		cursor := renderCursor(index == m.cursor, ui.Styles.Cursor)
+		origin := renderOrigin(entry.Origin, ui.Styles.LogEntry.Origin)
 
 		if m.showNearbyLogEntries && index == m.cursor {
 			for _, entryBefore := range entry.LogEntriesBefore {
@@ -79,22 +70,24 @@ func (m Model) View() string {
 		}
 	}
 
+	view += "Press ctrl+c or q to quit"
+
 	return view
 }
 
 func formatLine(logEntry *logentry.LogEntry, origin string, cursor string, index int, numBefore int, numAfter int) string {
-	timestamp := renderTimestamp(logEntry.Time, ui.Styles.LogEntryStyles.TimestampStyle)
-	level := renderLevel(logEntry.Level, ui.Styles.LogEntryStyles.LevelStyle)
-	msg := renderMessage(logEntry.Message, ui.Styles.LogEntryStyles.MessageStyle)
-	lineNumber := renderLineNumber(index, numBefore, numAfter, ui.Styles.LogEntryStyles.LineNumberStyle)
+	timestamp := renderTimestamp(logEntry.Time, ui.Styles.LogEntry.Timestamp)
+	level := renderLevel(logEntry.Level, ui.Styles.LogEntry.Level)
+	msg := renderMessage(logEntry.Message, ui.Styles.LogEntry.Message)
+	lineNumber := renderLineNumber(index, numBefore, numAfter, ui.Styles.LogEntry.LineNumber)
 
 	return fmt.Sprintf("%s %s %s - %s - %s - %s\n", cursor, lineNumber, origin, timestamp, level, msg)
 }
 
 func formatNearbyLine(origin string, logEntry *logentry.LogEntry) string {
-	timestamp := renderTimestamp(logEntry.Time, ui.Styles.NearbyLogEntryStyles.TimestampStyle)
-	level := renderLevel(logEntry.Level, ui.Styles.NearbyLogEntryStyles.LevelStyle)
-	msg := renderMessage(logEntry.Message, ui.Styles.NearbyLogEntryStyles.MessageStyle)
+	timestamp := renderTimestamp(logEntry.Time, ui.Styles.NearbyLogEntry.Timestamp)
+	level := renderLevel(logEntry.Level, ui.Styles.NearbyLogEntry.Level)
+	msg := renderMessage(logEntry.Message, ui.Styles.NearbyLogEntry.Message)
 
 	return fmt.Sprintf("\t%s - %s - %s - %s\n", origin, timestamp, level, msg)
 }
@@ -103,7 +96,7 @@ func renderTimestamp(timestamp string, style lipgloss.Style) string {
 	parsedTime, _ := time.Parse(time.RFC3339, timestamp)
 	formattedTime := parsedTime.Format("2006-01-02 15:04:05")
 
-	if isToday(parsedTime) {
+	if utils.IsToday(parsedTime) {
 		formattedTime = parsedTime.Format("15:04:05")
 	}
 
@@ -112,7 +105,7 @@ func renderTimestamp(timestamp string, style lipgloss.Style) string {
 
 func renderOrigin(origin string, style lipgloss.Style) string {
 	if utils.IsValueKubernetesPodID(origin) {
-		return renderKubernetesPodNameOrigin(origin, ui.Styles.LogEntryStyles.OriginStyle)
+		return renderKubernetesPodNameOrigin(origin, ui.Styles.LogEntry.Origin)
 	}
 
 	color := ui.GetPastelColorForValue(origin)
@@ -161,9 +154,4 @@ func getNumberOfNearbyLogEntries(entry *viewcontroller.ViewEntry, showNearby boo
 	}
 
 	return numBefore, numAfter
-}
-
-func isToday(t time.Time) bool {
-	now := time.Now()
-	return t.Year() == now.Year() && t.YearDay() == now.YearDay()
 }
