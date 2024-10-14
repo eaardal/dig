@@ -2,6 +2,7 @@ package ui
 
 import (
 	"github.com/charmbracelet/lipgloss"
+	"github.com/eaardal/dig/utils"
 	"hash/fnv"
 	"math/rand"
 )
@@ -41,7 +42,6 @@ var AllPastelColors = []lipgloss.Color{
 	PastelRed,
 	PastelLavender,
 	PastelGrey,
-	PastelWhite,
 }
 
 var AllFadedColors = []lipgloss.Color{
@@ -55,7 +55,6 @@ var AllFadedColors = []lipgloss.Color{
 	FadedRed,
 	FadedLavender,
 	FadedGrey,
-	FadedWhite,
 }
 
 var AllColors = append(AllPastelColors, AllFadedColors...)
@@ -68,16 +67,14 @@ func RandomFadedColor() lipgloss.Color {
 	return AllFadedColors[rand.Intn(len(AllFadedColors))]
 }
 
+func GetPastelColorForValue(value string) lipgloss.Color {
+	return utils.DeterministicItemForValue(value, AllPastelColors)
+}
+
 func hashStringToUint32(s string) uint32 {
 	h := fnv.New32a()
 	_, _ = h.Write([]byte(s))
 	return h.Sum32()
-}
-
-func RandomPastelColorForValue(value string) lipgloss.Color {
-	hashValue := hashStringToUint32(value)
-	colorIndex := int(hashValue) % len(AllPastelColors)
-	return AllPastelColors[colorIndex]
 }
 
 var Styles = AppStyles{

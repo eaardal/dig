@@ -6,9 +6,8 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/eaardal/dig/logentry"
 	"github.com/eaardal/dig/ui"
+	"github.com/eaardal/dig/utils"
 	"github.com/eaardal/dig/viewcontroller"
-	"regexp"
-	"strings"
 	"time"
 )
 
@@ -59,11 +58,10 @@ func contains(slice []string, s string) bool {
 
 func (m Model) View() string {
 	view := ""
-	originBaseColors := prepareOriginBaseColors(m.viewEntries)
 
 	for index, entry := range m.viewEntries {
 		cursor := renderCursor(index == m.cursor, ui.Styles.CursorStyle)
-		origin := renderOrigin(entry.Origin, ui.Styles.LogEntryStyles.OriginStyle, originBaseColors)
+		origin := renderOrigin(entry.Origin, ui.Styles.LogEntryStyles.OriginStyle)
 
 		if m.showNearbyLogEntries && index == m.cursor {
 			for _, entryBefore := range entry.LogEntriesBefore {
@@ -112,66 +110,20 @@ func renderTimestamp(timestamp string, style lipgloss.Style) string {
 	return style.Render(formattedTime)
 }
 
-func renderOrigin(origin string, style lipgloss.Style, colors map[string]lipgloss.Color) string {
-	if isOriginKubernetesPodName(origin) {
-		_, _, replicaSetID := splitOriginIntoKubernetesPodIDParts(origin)
-		return renderKubernetesPodNameOrigin(origin, ui.Styles.LogEntryStyles.OriginStyle, colors, ui.RandomPastelColorForValue(replicaSetID))
+func renderOrigin(origin string, style lipgloss.Style) string {
+	if utils.IsValueKubernetesPodID(origin) {
+		return renderKubernetesPodNameOrigin(origin, ui.Styles.LogEntryStyles.OriginStyle)
 	}
 
-	color := colors[origin]
+	color := ui.GetPastelColorForValue(origin)
 	return style.Foreground(color).Render(origin)
 }
 
-func isOriginKubernetesPodName(origin string) bool {
-	var podIDRegex = regexp.MustCompile(`^[a-z0-9]([-a-z0-9.]*[a-z0-9])?$`)
-	return podIDRegex.MatchString(origin)
-}
-
-func renderKubernetesPodNameOrigin(podID string, style lipgloss.Style, colors map[string]lipgloss.Color, replicaSetPartColor lipgloss.Color) string {
-	parts := strings.Split(podID, "-")
-	deploymentID := strings.Join(parts[:len(parts)-1], "-")
-	replicaSetID := parts[len(parts)-1]
-	color := colors[podID]
-	return style.Render(fmt.Sprintf("%s-%s", style.Foreground(color).Render(deploymentID), style.Foreground(replicaSetPartColor).Render(replicaSetID)))
-}
-
-func prepareOriginBaseColors(viewEntries []*viewcontroller.ViewEntry) map[string]lipgloss.Color {
-	originBaseColors := make(map[string]lipgloss.Color)
-
-	distinctOrigins := make([]string, 0)
-	for _, entry := range viewEntries {
-		if !contains(distinctOrigins, entry.Origin) {
-			distinctOrigins = append(distinctOrigins, entry.Origin)
-		}
-	}
-
-	distinctDeploymentIDs := make([]string, 0)
-	for i, origin := range distinctOrigins {
-		if isOriginKubernetesPodName(origin) {
-			_, deploymentID, _ := splitOriginIntoKubernetesPodIDParts(origin)
-			if !contains(distinctDeploymentIDs, deploymentID) {
-				distinctDeploymentIDs = append(distinctDeploymentIDs, deploymentID)
-			}
-		} else {
-			originBaseColors[origin] = ui.AllColors[i%len(ui.AllColors)]
-		}
-	}
-
-	if len(distinctDeploymentIDs) > 0 {
-		for i, deploymentID := range distinctDeploymentIDs {
-			originBaseColors[deploymentID] = ui.AllColors[i%len(ui.AllColors)]
-		}
-	}
-
-	return originBaseColors
-}
-
-func splitOriginIntoKubernetesPodIDParts(origin string) (appName, deploymentID, replicaSetID string) {
-	parts := strings.Split(origin, "-")
-	appName = strings.Join(parts[:len(parts)-2], "-")
-	deploymentID = strings.Join(parts[:len(parts)-1], "-")
-	replicaSetID = parts[len(parts)-1]
-	return
+func renderKubernetesPodNameOrigin(podID string, style lipgloss.Style) string {
+	_, deploymentID, replicaSetID := utils.SplitIntoKubernetesPodIDParts(podID)
+	deploymentColor := ui.GetPastelColorForValue(deploymentID)
+	replicaSetColor := ui.GetPastelColorForValue(replicaSetID)
+	return style.Render(fmt.Sprintf("%s-%s", style.Foreground(deploymentColor).Render(deploymentID), style.Foreground(replicaSetColor).Render(replicaSetID)))
 }
 
 func renderLevel(level string, style lipgloss.Style) string {
